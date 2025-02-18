@@ -24,6 +24,7 @@ coefficients=[
     (-0.06, 0.11, -0.05, 0.01, 0.11),
     (-0.11, 0.25, -0.01, 0, 0)]
 
+#Setting the bounds for P and values and defining the pattern names
 lbP=[-3, -3, -20, -3, -3, -4] 
 ubP=[3, 3, 20, 3, 3, 2]
 lbE=[-3, -3, -20, -3, -3, -4]
