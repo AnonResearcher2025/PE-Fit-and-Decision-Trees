@@ -237,3 +237,37 @@ for i, group_label in enumerate(group_labels):
 #Improve layout
 plt.tight_layout()
 plt.show()
+
+#Setting the critical values of the contextual variable and its name
+crit_val=[2.5,9.5]
+Cvar='Tenure'
+
+#Preparing the grouped data
+crit_val.sort()
+crit_val.append(np.inf)
+groups=[]
+lb=-np.inf
+
+for i in range(0,len(crit_val)):
+    ub=crit_val[i]
+    globals()[f"dataG{i+1}"]=data[(data[Cvar]>lb)&(data[Cvar]<=ub)]
+    lb=ub
+
+#Building the DT models for the grouped data
+for i in range(len(crit_val)):
+    globals()[f"DTmodelG{i+1}"], globals()[f"DTpredG{i+1}"], globals()[f"DTr2G{i+1}"]=build_decision_tree_models(globals()[f"dataG{i+1}"].iloc[:, 0:2], 
+                                                                                       globals()[f"dataG{i+1}"].iloc[:, -1], depth=maxDepth, min_leaf=minSamples)
+
+#Plotting the Models for Different Groups
+figure, axis=plt.subplots(1,3,sharex=True,sharey=True,subplot_kw=dict(aspect='equal'))
+
+plotter(DTmodelG1, dataG1, var1, var2, labels, lbx, ubx, lby, uby, lb_out, ub_out, inc, inc, legend_title, colormap, x_axis, y_axis, scat, jitter, axis[0])
+plotter(DTmodelG2, dataG2, var1, var2, labels, lbx, ubx, lby, uby, lb_out, ub_out, inc, inc, legend_title, colormap, x_axis, y_axis, scat, jitter, axis[1])
+im=plotter(DTmodelG3, dataG3, var1, var2, labels, lbx, ubx, lby, uby, lb_out, ub_out, inc, inc, legend_title, colormap, x_axis, y_axis, scat, jitter, axis[2])
+
+cbar2=plt.colorbar(im, ax=axis[:], location='top', shrink=0.4, ticks=np.arange(lb_out, ub_out+0.00001, inc))
+cbar2.ax.tick_params(labelsize=8)
+cbar2.set_label("Job Satisfaction", rotation=0, loc='center', size=10)
+for i, label in enumerate(["0 ≤ T ≤ 2.5", "2.5 < T ≤ 9.5", "9.5 < T ≤ 38"]): 
+    axis[i].text(0.5, -0.35, label, ha='center', va='center', fontsize=12, 
+                 fontweight='bold', transform=axis[i].transAxes)
