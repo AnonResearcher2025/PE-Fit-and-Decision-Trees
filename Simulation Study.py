@@ -6,6 +6,7 @@ import random
 from sklearn.utils import check_random_state
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
 import matplotlib.pyplot as plt
 plt.style.use('seaborn-white')
 
@@ -137,12 +138,14 @@ for idx, (a, b, c, d, e) in enumerate(coefficients):
     df_highPE = pd.DataFrame({'P':P_highPE, 'E':E_highPE, 'Z':Z_highPE})
     datasets["highPE"].append(df_highPE)
 
-#Dictionary to store models, lb_out, ub_out, and inc
+#Dictionary to store models, R-squares, lb_out, ub_out, and inc
 models={}
+r2_vals={}
 cbar_vals={}
 
 def build_and_store_models(dataset_type, dataset):
     models[dataset_type]={}
+    r2_vals[dataset_type]={}
     cbar_vals[dataset_type]={}
 
     for i in range(len(files)):
@@ -165,6 +168,13 @@ def build_and_store_models(dataset_type, dataset):
             "poly_model":poly_model,
             "tree_model":tree_model}
         
+        pred_poly=poly_model.predict(poly_features)
+        pred_tree=tree_model.predict(X)
+
+        r2_vals[dataset_type][i]={
+            "poly_model":r2_score(y, pred_poly),
+            "tree_model":r2_score(y, pred_tree)}
+        
         lb_out=np.round(data["Z"].min(), 1)
         ub_out=np.round(data["Z"].max(), 1)
         inc=(ub_out-lb_out)/9
@@ -175,7 +185,7 @@ for key, files in datasets.items():
     build_and_store_models(key, files)
 
 #Function to plot models
-def plot_model(ax, model, X, y, lbx, ubx, lby, uby, lb_out, ub_out, inc, colormap='bwr', scatter=True, title=None, left_title=None):
+def plot_model(ax, model, X, y, lbx, ubx, lby, uby, lb_out, ub_out, inc, colormap='bwr', scatter=True, title=None, left_title=None, r2=None):
     x_vals=np.linspace(lbx, ubx, 500)
     y_vals=np.linspace(lby, uby, 500)
     X_grid, Y_grid=np.meshgrid(x_vals, y_vals)
@@ -208,6 +218,9 @@ def plot_model(ax, model, X, y, lbx, ubx, lby, uby, lb_out, ub_out, inc, colorma
     
     if left_title:
         ax.text(-0.2, 0.5, left_title, ha='center', va='center', rotation=90, fontsize=14, fontweight='bold', transform=ax.transAxes)
+
+    if r2 is not None:
+        ax.text(0.5, -0.15, f'R²={r2:.2f}', ha='center', va='center', fontsize=10, transform=ax.transAxes)
     return im
 
 #Plotting Figure 3
@@ -216,13 +229,15 @@ for i in range(6):
     data=models['normal'][i]['data']
     poly_model=models['normal'][i]['poly_model']
     tree_model=models['normal'][i]['tree_model']
+    poly_r2=r2_vals['normal'][i]['poly_model']
+    tree_r2=r2_vals['normal'][i]['tree_model']
     lb_out, ub_out, inc=cbar_vals['normal'][i]
     if i==0:
-        plot_model(axes[0, i], poly_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, title=patterns[i], left_title='PRA')
-        plot_model(axes[1, i], tree_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, left_title='DT')
+        plot_model(axes[0, i], poly_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, title=patterns[i], left_title='PRA', r2=poly_r2)
+        plot_model(axes[1, i], tree_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, left_title='DT', r2=tree_r2)
     else:
-        plot_model(axes[0, i], poly_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, title=patterns[i])
-        plot_model(axes[1, i], tree_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc)
+        plot_model(axes[0, i], poly_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, title=patterns[i], r2=poly_r2)
+        plot_model(axes[1, i], tree_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, r2=tree_r2)
 
 fig.tight_layout()
 plt.show()
@@ -230,27 +245,23 @@ plt.show()
 #Plotting Figure 4
 fig, axes=plt.subplots(2, 2, figsize=(10, 10))
 data=models['normal'][0]['data']
-poly_model=models['normal'][0]['poly_model']
-tree_model=models['normal'][0]['tree_model']
 lb_out, ub_out, inc=cbar_vals['normal'][0]
-plot_model(axes[0, 0], poly_model, data[['P', 'E']].values, data['Z'].values, -3, 3, -3, 3, lb_out, ub_out, inc, title='PRA', left_title='Without Outliers')
-plot_model(axes[0, 1], tree_model, data[['P', 'E']].values, data['Z'].values, -3, 3, -3, 3, lb_out, ub_out, inc, title='DT')
+plot_model(axes[0, 0], models['normal'][0]['poly_model'], data[['P', 'E']].values, data['Z'].values, -3, 3, -3, 3, lb_out, ub_out, inc, title='PRA', left_title='Without Outliers', r2=r2_vals['normal'][0]['poly_model'])
+plot_model(axes[0, 1], models['normal'][0]['tree_model'], data[['P', 'E']].values, data['Z'].values, -3, 3, -3, 3, lb_out, ub_out, inc, title='DT', r2=r2_vals['normal'][0]['tree_model'])
 data_outlier=models['outlier'][0]['data']
-plot_model(axes[1, 0], models['outlier'][0]['poly_model'], data_outlier[['P', 'E']].values, data_outlier['Z'].values, -3, 3, -3, 3, lb_out, ub_out, inc, left_title='With Outliers')
-plot_model(axes[1, 1], models['outlier'][0]['tree_model'], data_outlier[['P', 'E']].values, data_outlier['Z'].values, -3, 3, -3, 3, lb_out, ub_out, inc)
+plot_model(axes[1, 0], models['outlier'][0]['poly_model'], data_outlier[['P', 'E']].values, data_outlier['Z'].values, -3, 3, -3, 3, lb_out, ub_out, inc, left_title='With Outliers', r2=r2_vals['outlier'][0]['poly_model'])
+plot_model(axes[1, 1], models['outlier'][0]['tree_model'], data_outlier[['P', 'E']].values, data_outlier['Z'].values, -3, 3, -3, 3, lb_out, ub_out, inc, r2=r2_vals['outlier'][0]['tree_model'])
 plt.show()
 
 #Plotting Figure 5
 fig, axes=plt.subplots(2, 2, figsize=(10, 10))
 data=models['normal'][1]['data']
-poly_model=models['normal'][1]['poly_model']
-tree_model=models['normal'][1]['tree_model']
 lb_out, ub_out, inc=cbar_vals['normal'][1]
-plot_model(axes[0, 0], poly_model, data[['P', 'E']].values, data['Z'].values, -3, 3, -3, 3, lb_out, ub_out, inc, title='PRA', left_title='Uniform Distribution')
-plot_model(axes[0, 1], tree_model, data[['P', 'E']].values, data['Z'].values, -3, 3, -3, 3, lb_out, ub_out, inc, title='DT')
+plot_model(axes[0, 0], models['normal'][1]['poly_model'], data[['P', 'E']].values, data['Z'].values, -3, 3, -3, 3, lb_out, ub_out, inc, title='PRA', left_title='Uniform Distribution', r2=r2_vals['normal'][1]['poly_model'])
+plot_model(axes[0, 1], models['normal'][1]['tree_model'], data[['P', 'E']].values, data['Z'].values, -3, 3, -3, 3, lb_out, ub_out, inc, title='DT', r2=r2_vals['normal'][1]['tree_model'])
 data_highPE=models['highPE'][1]['data']
-plot_model(axes[1, 0], models['highPE'][1]['poly_model'], data_highPE[['P', 'E']].values, data_highPE['Z'].values, -3, 3, -3, 3, lb_out, ub_out, inc, left_title='Skewed Distribution')
-plot_model(axes[1, 1], models['highPE'][1]['tree_model'], data_highPE[['P', 'E']].values, data_highPE['Z'].values, -3, 3, -3, 3, lb_out, ub_out, inc)
+plot_model(axes[1, 0], models['highPE'][1]['poly_model'], data_highPE[['P', 'E']].values, data_highPE['Z'].values, -3, 3, -3, 3, lb_out, ub_out, inc, left_title='Skewed Distribution', r2=r2_vals['highPE'][1]['poly_model'])
+plot_model(axes[1, 1], models['highPE'][1]['tree_model'], data_highPE[['P', 'E']].values, data_highPE['Z'].values, -3, 3, -3, 3, lb_out, ub_out, inc, r2=r2_vals['highPE'][1]['tree_model'])
 plt.show()
 
 #Plotting all PRA and DT models fitted to the datasets with outliers
@@ -259,30 +270,34 @@ for i in range(6):
     data=models['outlier'][i]['data']
     poly_model=models['outlier'][i]['poly_model']
     tree_model=models['outlier'][i]['tree_model']
+    poly_r2=r2_vals['outlier'][i]['poly_model']
+    tree_r2=r2_vals['outlier'][i]['tree_model']
     lb_out, ub_out, inc=cbar_vals['normal'][i]
     if i==0:
-        plot_model(axes[0, i], poly_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, title=patterns[i], left_title='PRA')
-        plot_model(axes[1, i], tree_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, left_title='DT')
+        plot_model(axes[0, i], poly_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, title=patterns[i], left_title='PRA', r2=poly_r2)
+        plot_model(axes[1, i], tree_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, left_title='DT', r2=tree_r2)
     else:
-        plot_model(axes[0, i], poly_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, title=patterns[i])
-        plot_model(axes[1, i], tree_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc)
+        plot_model(axes[0, i], poly_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, title=patterns[i], r2=poly_r2)
+        plot_model(axes[1, i], tree_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, r2=tree_r2)
 
 fig.tight_layout()
 plt.show()
 
-#Plotting all PRA and DT models fitted to the datasets with concentrated P and E values
+#Plotting all PRA and DT models fitted to the datasets with skewed P and E values
 fig, axes=plt.subplots(2, 6, figsize=(25, 10))
 for i in range(6):
     data=models['highPE'][i]['data']
     poly_model=models['highPE'][i]['poly_model']
     tree_model=models['highPE'][i]['tree_model']
+    poly_r2=r2_vals['highPE'][i]['poly_model']
+    tree_r2=r2_vals['highPE'][i]['tree_model']
     lb_out, ub_out, inc=cbar_vals['normal'][i]
     if i==0:
-        plot_model(axes[0, i], poly_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, title=patterns[i], left_title='PRA')
-        plot_model(axes[1, i], tree_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, left_title='DT')
+        plot_model(axes[0, i], poly_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, title=patterns[i], left_title='PRA', r2=poly_r2)
+        plot_model(axes[1, i], tree_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, left_title='DT', r2=tree_r2)
     else:
-        plot_model(axes[0, i], poly_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, title=patterns[i])
-        plot_model(axes[1, i], tree_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc)
+        plot_model(axes[0, i], poly_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, title=patterns[i], r2=poly_r2)
+        plot_model(axes[1, i], tree_model, data[['P', 'E']].values, data['Z'].values, lbP[i], ubP[i], lbE[i], ubE[i], lb_out, ub_out, inc, r2=tree_r2)
 
 fig.tight_layout()
 plt.show()
