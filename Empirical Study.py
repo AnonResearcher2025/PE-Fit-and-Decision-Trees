@@ -70,7 +70,7 @@ def build_polynomial_regression_model(X, y):
 Rmodel, Rpred, Rr2 =build_polynomial_regression_model(regr_data.iloc[:,0:5], regr_data.iloc[:,-1])
 
 #Plotter function to produce PRA and contour plots
-def plotter(model, data, var1, var2, labels, lbx, ubx, lby, uby, lb_out, ub_out, inc_levels, inc_counters, legend_title, colormap, x_axis, y_axis, scat, jitter, ax):
+def plotter(model, data, var1, var2, labels, lbx, ubx, lby, uby, lb_out, ub_out, inc_levels, inc_counters, legend_title, colormap, x_axis, y_axis, scat, jitter, ax, r2):
     x=np.linspace(lbx, ubx, 500)
     y=np.linspace(lby, uby, 500)
     X, Y = np.meshgrid(x, y)
@@ -113,6 +113,8 @@ def plotter(model, data, var1, var2, labels, lbx, ubx, lby, uby, lb_out, ub_out,
             ax=plt.gca()
             ax.set_aspect('equal', adjustable='box')
             cbar.ax.tick_params(labelsize=8)
+        if r2 is not None:
+            plt.text(0, -2.7, f'R²={r2:.2f}', ha='center', va='center', fontsize=10)
         if scat:
             if jitter:
                 plt.scatter(data_jit[labels[0]+'_jittered'],data_jit[labels[1]+'_jittered'],c=data.iloc[:,-1], cmap=colormap, vmin=lb_out, vmax=ub_out, edgecolors='w', linewidths=0.5, s=20)
@@ -129,6 +131,8 @@ def plotter(model, data, var1, var2, labels, lbx, ubx, lby, uby, lb_out, ub_out,
             patches=[mpatches.Patch(color=colors[i], label="{l}".format(l=round(values[i],2)) ) for i in range(len(values))]
         else:
             ax.contourf(X, Y, c, levels=np.arange(lb_out, ub_out+0.00001, inc_counters), cmap=colormap, extend='both')
+        if r2 is not None:
+            ax.text(0.5, -0.35, f'R²={r2:.2f}', ha='center', va='center', fontsize=10, transform=ax.transAxes)
         if scat:
             if jitter:
                 ax.scatter(data_jit[labels[0]+'_jittered'],data_jit[labels[1]+'_jittered'],c=data.iloc[:,-1], cmap=colormap, vmin=lb_out, vmax=ub_out, edgecolors='w', linewidths=0.5, s=10)
@@ -154,18 +158,52 @@ y_axis='Job'
 lb_out=3.5
 ub_out=5
 inc=0.25
-colormap='bwr'
+colormap='gray'
 scat=True
 jitter=True
 
 #Plotting Figure 2
-plotter(DTmodel, data, var1, var2, labels, lbx, ubx, lby, uby, lb_out, ub_out, inc, inc, legend_title, colormap, x_axis, y_axis, scat, jitter, None)
+plotter(DTmodel, data, var1, var2, labels, lbx, ubx, lby, uby, lb_out, ub_out, inc, inc, legend_title, colormap, x_axis, y_axis, scat, jitter, None, DTr2)
 
 #Plotting Figure 6
 fig=plt.figure(figsize=(80,40))
 _=plot_tree(DTmodel_cont, feature_names=labels[0:-1], filled=True)
 plt.show()
 plt.close(fig)
+
+#Setting the critical values of the contextual variable and its name
+crit_val=[2.5,9.5]
+Cvar='Tenure'
+
+#Preparing the grouped data
+crit_val.sort()
+crit_val.append(np.inf)
+groups=[]
+lb=-np.inf
+
+for i in range(0,len(crit_val)):
+    ub=crit_val[i]
+    globals()[f"dataG{i+1}"]=data[(data[Cvar]>lb)&(data[Cvar]<=ub)]
+    lb=ub
+
+#Building the DT models for the grouped data
+for i in range(len(crit_val)):
+    globals()[f"DTmodelG{i+1}"], globals()[f"DTpredG{i+1}"], globals()[f"DTr2G{i+1}"]=build_decision_tree_models(globals()[f"dataG{i+1}"].iloc[:, 0:2], 
+                                                                                       globals()[f"dataG{i+1}"].iloc[:, -1], depth=maxDepth, min_leaf=minSamples)
+
+#Plotting the Models for Different Groups
+figure, axis=plt.subplots(1,3,sharex=True,sharey=True,subplot_kw=dict(aspect='equal'))
+
+plotter(DTmodelG1, dataG1, var1, var2, labels, lbx, ubx, lby, uby, lb_out, ub_out, inc, inc, legend_title, colormap, x_axis, y_axis, scat, jitter, axis[0], DTr2G1)
+plotter(DTmodelG2, dataG2, var1, var2, labels, lbx, ubx, lby, uby, lb_out, ub_out, inc, inc, legend_title, colormap, x_axis, y_axis, scat, jitter, axis[1], DTr2G2)
+im=plotter(DTmodelG3, dataG3, var1, var2, labels, lbx, ubx, lby, uby, lb_out, ub_out, inc, inc, legend_title, colormap, x_axis, y_axis, scat, jitter, axis[2], DTr2G3)
+
+cbar2=plt.colorbar(im, ax=axis[:], location='top', shrink=0.4, ticks=np.arange(lb_out, ub_out+0.00001, inc))
+cbar2.ax.tick_params(labelsize=8)
+cbar2.set_label("Job Satisfaction", rotation=0, loc='center', size=10)
+for i, label in enumerate(["0 ≤ T ≤ 2.5", "2.5 < T ≤ 9.5", "9.5 < T ≤ 38"]): 
+    axis[i].text(0.5, -0.5, label, ha='center', va='center', fontsize=10, 
+                 transform=axis[i].transAxes)
 
 #Importing the clusters data
 df_cl=pd.read_csv("Clusters.csv")
@@ -189,7 +227,7 @@ df_long=df_cl.melt(id_vars=["Cluster"], value_vars=["P", "J"], var_name="Variabl
 fig, ax=plt.subplots(figsize=(12, 6))
 
 #Plot grouped box-and-whisker plot for P and J
-sns.boxplot(data=df_long, x="Cluster", y="Value", hue="Variable", ax=ax, dodge=True, palette=["lightblue", "orange"])
+sns.boxplot(data=df_long, x="Cluster", y="Value", hue="Variable", ax=ax, dodge=True, palette=["lightgrey", "dimgrey"])
 
 #Set axis labels and legend text sizes
 ax.set_ylabel("P and J Values", fontsize=12)
@@ -237,37 +275,3 @@ for i, group_label in enumerate(group_labels):
 #Improve layout
 plt.tight_layout()
 plt.show()
-
-#Setting the critical values of the contextual variable and its name
-crit_val=[2.5,9.5]
-Cvar='Tenure'
-
-#Preparing the grouped data
-crit_val.sort()
-crit_val.append(np.inf)
-groups=[]
-lb=-np.inf
-
-for i in range(0,len(crit_val)):
-    ub=crit_val[i]
-    globals()[f"dataG{i+1}"]=data[(data[Cvar]>lb)&(data[Cvar]<=ub)]
-    lb=ub
-
-#Building the DT models for the grouped data
-for i in range(len(crit_val)):
-    globals()[f"DTmodelG{i+1}"], globals()[f"DTpredG{i+1}"], globals()[f"DTr2G{i+1}"]=build_decision_tree_models(globals()[f"dataG{i+1}"].iloc[:, 0:2], 
-                                                                                       globals()[f"dataG{i+1}"].iloc[:, -1], depth=maxDepth, min_leaf=minSamples)
-
-#Plotting the Models for Different Groups
-figure, axis=plt.subplots(1,3,sharex=True,sharey=True,subplot_kw=dict(aspect='equal'))
-
-plotter(DTmodelG1, dataG1, var1, var2, labels, lbx, ubx, lby, uby, lb_out, ub_out, inc, inc, legend_title, colormap, x_axis, y_axis, scat, jitter, axis[0])
-plotter(DTmodelG2, dataG2, var1, var2, labels, lbx, ubx, lby, uby, lb_out, ub_out, inc, inc, legend_title, colormap, x_axis, y_axis, scat, jitter, axis[1])
-im=plotter(DTmodelG3, dataG3, var1, var2, labels, lbx, ubx, lby, uby, lb_out, ub_out, inc, inc, legend_title, colormap, x_axis, y_axis, scat, jitter, axis[2])
-
-cbar2=plt.colorbar(im, ax=axis[:], location='top', shrink=0.4, ticks=np.arange(lb_out, ub_out+0.00001, inc))
-cbar2.ax.tick_params(labelsize=8)
-cbar2.set_label("Job Satisfaction", rotation=0, loc='center', size=10)
-for i, label in enumerate(["0 ≤ T ≤ 2.5", "2.5 < T ≤ 9.5", "9.5 < T ≤ 38"]): 
-    axis[i].text(0.5, -0.35, label, ha='center', va='center', fontsize=12, 
-                 fontweight='bold', transform=axis[i].transAxes)
