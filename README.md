@@ -1,6 +1,6 @@
 Dear reader,
 
-This repository contains the data and the code to reproduce all plots in the article "Applying Decision Trees to Person-Environment Fit".
+This repository contains the data and the code to reproduce all plots in the article "The Role of Decision Trees in Congruence Analysis: An Application in Person-Environment Fit".
 
 ## Table of Contents
 
@@ -11,7 +11,7 @@ This repository contains the data and the code to reproduce all plots in the art
 
 ## Introduction
 
-This project aims to enhance our understanding of person-environment fit using decision trees. It includes the necessary data and scripts to generate the plots presented in the article. You can follow this README file to reproduce the plots or apply the models to your data on your PC, or you can follow [this notebook for simulation study](https://colab.research.google.com/drive/13TznPwRjq1mt1DhhqaiDle88xCMMAur4#scrollTo=6s-EZ95nz_LX) and [this notebook for empirical study](https://colab.research.google.com/drive/19FuYHk3Fhlv5C_3TQOJLMgRbQhH6hASf) to generate the plots on the browser. If you are not familiar with Python, we strongly recommend you work on the notebook.
+This project aims to enhance our understanding of congruence analysis using decision trees. It includes the necessary data and scripts to generate the plots presented in the article. You can follow this README file to reproduce the plots or apply the models to your data on your PC, or you can follow [this notebook for simulation study](https://colab.research.google.com/drive/13TznPwRjq1mt1DhhqaiDle88xCMMAur4#scrollTo=6s-EZ95nz_LX) and [this notebook for empirical study](https://colab.research.google.com/drive/19FuYHk3Fhlv5C_3TQOJLMgRbQhH6hASf) to generate the plots on the browser. If you are not familiar with Python, we strongly recommend you work on the notebook.
 
 ## Installation
 
